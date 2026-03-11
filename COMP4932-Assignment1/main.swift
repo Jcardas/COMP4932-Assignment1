@@ -2,7 +2,7 @@
 //  main.swift
 //  COMP4932-Assignment1
 //
-//  Blends two images together.
+//  Blends the 16 images from assignment 1 together.
 //
 //  Created by Justin Cardas on 2026-03-10.
 //
@@ -11,6 +11,24 @@ import Foundation
 import CoreGraphics
 import UniformTypeIdentifiers
 import ImageIO
+
+
+// This is run when the program is run
+let workingDirectory = "./img/"
+
+// Loop through each time step (each image)
+for img_step in 1...8 {
+    let time:Double = Double(img_step) / 9.0
+    
+    let w0FileName = workingDirectory + "W0.t\(img_step).jpg"
+    let W1FileName = workingDirectory + "W1.t\(img_step).jpg"
+    let outputFileName = workingDirectory + "O.t\(img_step).jpg"
+    
+    blendImages(w0Path: w0FileName,
+                w1Path: W1FileName,
+                outputPath: outputFileName,
+                time: time)
+}
 
 func blendImages(w0Path: String, w1Path: String, outputPath: String, time: Double) {
     
@@ -112,26 +130,35 @@ func blendImages(w0Path: String, w1Path: String, outputPath: String, time: Doubl
             // Ensure the resulting number isn't outside the bounds of the UInt8 (0-255)
             outPixels[i] = UInt8(min(max(blended, 0), 255))
         }
-        
     }
-}
-
-
-
-// Finally, blend the images.
-
-let workingDirectory = "./img/"
-
-// Loop through each time step (each image)
-for img_step in 1...8 {
-    let time:Double = Double(img_step) / 9.0
     
-    let w0FileName = workingDirectory + "W0.t\(img_step).jpg"
-    let W1FileName = workingDirectory + "W1.t\(img_step).jpg"
-    let outputFileName = workingDirectory + "O.t\(img_step).jpg"
+    // Now save the new blended image!
+    guard
+        // Create a new CG context (canvas), but this time link it to the outPixels array.
+        // Then ask the context to turn those raw numbers back into a usable Image object (makeImage).
+        let outContext = CGContext(data: &outPixels,
+                                   width: width,
+                                   height: height,
+                                   bitsPerComponent: 8,
+                                   bytesPerRow: bytesPerRow,
+                                   space: colorSpace,
+                                   bitmapInfo: contextInfo),
+        
+        // create the CGImage object using the new data
+        let outCGImage = outContext.makeImage(),
+        
+        // Prepare a destination to save the file as a JPG at the specified URL.
+        let destination = CGImageDestinationCreateWithURL(outputURL as CFURL,
+                                                          UTType.jpeg.identifier as CFString, 1, nil)
+    else {
+        fatalError("Could not prepare the final image for saving.")
+    }
     
-    blendImages(w0Path: w0FileName,
-                w1Path: W1FileName,
-                outputPath: outputFileName,
-                time: time)
+    // Add the newly created image to the destination.
+    CGImageDestinationAddImage(destination, outCGImage, nil)
+    
+    // Finalize writes the actual file data to the disk.
+    CGImageDestinationFinalize(destination)
+    
+    print("Image has been blendified and saved at: \(outputURL.lastPathComponent)")
 }
